@@ -159,20 +159,22 @@ router.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
 
+    console.log("Login attempt:", { username, password: "***" });
+
     if (!username || !password) {
-      res.status(400).send({ error: "Username and password are required" });
-      return;
+      return res.status(400).send({ error: "Username and password are required" });
     }
 
-    // Find user
+    // Find user FIRST
     const user = await User.findOne({ where: { username } });
-    user.checkPassword(password);
+    
     if (!user) {
       return res.status(401).send({ error: "Invalid credentials" });
     }
 
-    // Check password
-    if (!user.checkPassword(password)) {
+    // THEN check password
+    const isValidPassword = user.checkPassword(password);
+    if (!isValidPassword) {
       return res.status(401).send({ error: "Invalid credentials" });
     }
 
@@ -188,15 +190,21 @@ router.post("/login", async (req, res) => {
       { expiresIn: "24h" }
     );
 
+    // Set cookie AND return token in response
     res.cookie("token", token, cookieSettings);
 
     res.send({
       message: "Login successful",
-      user: { id: user.id, username: user.username },
+      user: { 
+        id: user.id, 
+        username: user.username,
+        email: user.email 
+      },
+      token: token 
     });
   } catch (error) {
     console.error("Login error:", error);
-    res.sendStatus(500);
+    res.status(500).send({ error: "Login failed" });
   }
 });
 
@@ -207,18 +215,48 @@ router.post("/logout", (req, res) => {
 });
 
 // Get current user route (protected)
+// Get current user route (protected)
 router.get("/me", (req, res) => {
-  const token = req.cookies.token;
-
-  if (!token) {
-    return res.send({});
+  // Check for token in Authorization header first, then cookies
+  let token = null;
+  
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  } else {
+    token = req.cookies.token;
   }
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
+  if (!token) {
+    return res.status(401).send({ error: "No token provided" });
+  }
+
+  jwt.verify(token, JWT_SECRET, async (err, decoded) => {
     if (err) {
       return res.status(403).send({ error: "Invalid or expired token" });
     }
-    res.send({ user: user });
+    
+    try {
+      // Get fresh user data from database
+      const user = await User.findByPk(decoded.id, {
+        attributes: { exclude: ['passwordHash'] }
+      });
+      
+      if (!user) {
+        return res.status(404).send({ error: "User not found" });
+      }
+      
+      res.send({ 
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).send({ error: "Failed to fetch user" });
+    }
   });
 });
 
