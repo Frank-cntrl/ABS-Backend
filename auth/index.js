@@ -13,21 +13,47 @@ const cookieSettings = {
   maxAge: 24 * 60 * 60 * 1000, // 24 hours
 };
 
-// Middleware to authenticate JWT tokens
 const authenticateJWT = (req, res, next) => {
-  const token = req.cookies.token;
-
+  console.log("=== AUTH MIDDLEWARE DEBUG ===");
+  console.log("Headers:", JSON.stringify(req.headers, null, 2));
+  console.log("Cookies:", req.cookies);
+  
+  // Try to get token from Authorization header first, then from cookies
+  let token = req.headers.authorization?.split(' ')[1]; // Bearer TOKEN
+  
   if (!token) {
-    return res.status(401).send({ error: "Access token required" });
+    token = req.cookies?.token;
   }
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) {
-      return res.status(403).send({ error: "Invalid or expired token" });
-    }
-    req.user = user;
+  console.log("Token found:", !!token);
+  console.log("Token preview:", token ? token.substring(0, 50) + "..." : "No token");
+
+  if (!token) {
+    console.log('No token found in request');
+    return res.status(401).json({ 
+      error: 'Access denied. No token provided.',
+      debug: {
+        hasAuthHeader: !!req.headers.authorization,
+        hasCookieToken: !!req.cookies?.token,
+        headers: Object.keys(req.headers)
+      }
+    });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('Token verified successfully. User:', decoded);
+    req.user = decoded;
     next();
-  });
+  } catch (error) {
+    console.log('Token verification failed:', error.message);
+    res.status(403).json({ 
+      error: 'Invalid token.',
+      debug: {
+        tokenError: error.message
+      }
+    });
+  }
 };
 
 // Auth0 authentication route
