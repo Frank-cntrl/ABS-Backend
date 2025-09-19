@@ -34,14 +34,15 @@ router.get('/:id', async (req, res) => {
 // Create new event (admin only)
 router.post('/', authenticateJWT, async (req, res) => {
   try {
-    const { title, description, location, date, image } = req.body;
+    const { title, description, location, date, image, rsvpLink } = req.body;
 
     const event = await Event.create({
       title,
       description,
       location,
       date: date || null,
-      image: image || null
+      image: image || null,
+      rsvpLink: rsvpLink || null
     });
 
     res.status(201).json(event);
@@ -60,7 +61,7 @@ router.post('/', authenticateJWT, async (req, res) => {
 // Update event (admin only)
 router.put('/:id', authenticateJWT, async (req, res) => {
   try {
-    const { title, description, location, date, image } = req.body;
+    const { title, description, location, date, image, rsvpLink } = req.body;
     
     const event = await Event.findByPk(req.params.id);
     if (!event) {
@@ -72,7 +73,8 @@ router.put('/:id', authenticateJWT, async (req, res) => {
       description,
       location,
       date: date || null,
-      image: image || null
+      image: image || null,
+      rsvpLink: rsvpLink || null
     });
 
     res.json(event);

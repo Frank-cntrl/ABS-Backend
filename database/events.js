@@ -43,11 +43,20 @@ const Event = db.define('Event', {
     allowNull: true
   },
   image: {
-    type: DataTypes.TEXT, // Using TEXT to handle long URLs
+    type: DataTypes.TEXT,
     allowNull: true,
     validate: {
       isUrl: {
         msg: 'Image must be a valid URL'
+      }
+    }
+  },
+  rsvpLink: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    validate: {
+      isUrl: {
+        msg: 'RSVP link must be a valid URL'
       }
     }
   }
