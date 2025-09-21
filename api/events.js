@@ -8,7 +8,7 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const events = await Event.findAll({
-      order: [['date', 'ASC']]
+      order: [['date', 'DESC']]
     });
     res.json(events);
   } catch (error) {
